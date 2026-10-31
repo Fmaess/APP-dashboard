@@ -7,7 +7,6 @@ Persönliches Dashboard über die privaten Projekte. Next.js (App Router) auf Ve
 | Kachel | Route | Inhalt |
 |---|---|---|
 | Real Estate | `/real-estate` | BlueMForest GbR: Cashflow-Modell, Steuern, Rücklage, Fristen, Ist vs. Plan, Dokumentation |
-| Briefing | `/briefing` | Das jeweils neueste Briefing (Markdown), ältere im Archiv |
 
 ### Real Estate
 
@@ -21,7 +20,7 @@ Tabs direkt verlinken: `/real-estate#fristen`, `#ist`, `#rk`, `#fin`, `#verm`, `
 
 ### 1. Supabase
 
-1. **SQL Editor → New query**, Inhalt von `supabase/schema.sql` einfügen, **Run**. Legt `re_ist` und `briefings` mit Row Level Security an.
+1. **SQL Editor → New query**, Inhalt von `supabase/schema.sql` einfügen, **Run**. Legt `re_ist` mit Row Level Security an.
 2. **Authentication → Users → Add user → Create new user**: eigene E-Mail und Passwort, „Auto Confirm User“ anhaken.
 3. **Authentication → Sign In / Providers**: „Allow new users to sign up“ **ausschalten**.
 4. **Authentication → URL Configuration**: Site URL auf die Vercel-Adresse setzen, sobald sie feststeht.

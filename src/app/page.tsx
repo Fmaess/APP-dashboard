@@ -9,38 +9,18 @@ const eur = (n: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigit
 const cf = (w: Record<string, number>) =>
   Object.entries(w).reduce((s, [k, v]) => s + (INCOME.includes(k) ? v : -v), 0);
 
-const daysSince = (d: string) => Math.round((Date.now() - new Date(d + "T00:00:00").getTime()) / 864e5);
-
 type Ist = { id: string; data: { werte: Record<string, number>; at?: string } };
 
 export default async function Home() {
   const user = await currentUser();
   const supabase = await createClient();
-  const [ist, brief] = await Promise.all([
-    supabase.from("re_ist").select("id, data").order("id", { ascending: false }),
-    supabase
-      .from("briefings")
-      .select("id, for_date, title, body_md, created_at")
-      .order("for_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  const ist = await supabase.from("re_ist").select("id, data").order("id", { ascending: false });
 
   const rows = (ist.data ?? []) as Ist[];
   const year = String(new Date().getFullYear());
   const thisYear = rows.filter((r) => r.id.startsWith(year));
   const last = rows[0];
   const ytd = thisYear.reduce((s, r) => s + cf(r.data.werte ?? {}), 0);
-  const b = brief.data;
-  const excerpt = b?.body_md
-    .replace(/[#*_>`\[\]]/g, "")
-    .split("\n")
-    .map((l: string) => l.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" · ");
-  const bAge = b ? daysSince(b.for_date) : 0;
 
   return (
     <main className="shell">
@@ -74,19 +54,6 @@ export default async function Home() {
           <span className="go">Öffnen →</span>
         </Link>
 
-        <Link href="/briefing" className="tile">
-          <h2>Briefing <span>{b ? new Date(b.for_date + "T12:00:00").toLocaleDateString("de-DE") : ""}</span></h2>
-          {b ? (
-            <>
-              <div style={{ font: "600 17px var(--f-display)" }}>{b.title}</div>
-              <p className="muted" style={{ margin: 0 }}>{excerpt && excerpt.length > 220 ? excerpt.slice(0, 220) + " …" : excerpt}</p>
-              {bAge > 1 && <p className="warn" style={{ margin: 0, fontSize: 12 }}>{bAge} Tage alt</p>}
-            </>
-          ) : (
-            <p className="muted" style={{ margin: 0 }}>Noch kein Briefing gespeichert.</p>
-          )}
-          <span className="go">Öffnen →</span>
-        </Link>
       </section>
 
       <section>
