@@ -237,6 +237,13 @@ td.wrap{white-space:normal;text-align:left;min-width:140px}
     <div class="kpi"><span class="l">Restschuld am Ende</span><span class="v" id="k4"></span><span class="s" id="k4s"></span></div>
   </div>
 
+  <section class="card" id="kontoCard">
+    <h2>Kontostand der GbR, kumuliert</h2>
+    <p class="viewnote" id="kontoText"></p>
+    <div class="legend"><span><i style="background:var(--c2)"></i>Beitrag Mainzer 105</span><span><i style="background:var(--c1)"></i>Beitrag Mainzer 111</span><span><i style="background:var(--c2);opacity:.3"></i>Ausgleich Mainzer 111</span></div>
+    <div class="chart" id="c5"></div>
+  </section>
+
   <section class="card" id="resCard">
     <h2>Rücklage Mainzer 111</h2>
     <p class="viewnote" id="resText"></p>
@@ -787,6 +794,30 @@ Cashflow nach St. ${eur(r.cfn)}`,L,w,W);
   h+=`<tr class="total">`+cols.map((c,i)=>{const t={y:"Summe",cf:last.cumCf,rec:last.cumRec,shFenja:sum("shFenja"),txF:sum("txF"),shFelix:sum("shFelix"),txX:sum("txX"),shJessica:sum("shJessica"),txJ:sum("txJ"),tx:last.cumTx,cfn:last.cumCfn};return `<td>${c[1](t)}</td>`}).join("")+"</tr>";
   document.getElementById("ttbl").innerHTML=h+"</tbody>";
 }
+function chartKonto(groups,N){
+  const r111=groups.m111.rows,r105=groups.m105.rows;
+  const rows=r111.map((r,i)=>({y:r.y,a:r.res,b:r105[i].cumCf,cf:r.cf+r105[i].cf,g:(r.resG||0)+(r.y===v("haus","t2Y")?v("haus","t2"):0)+(i===Math.ceil(Math.max(1,v("haus","m0"))/12)-1?v("haus","start")+v("haus","g26"):0)})).map(r=>({...r,k:r.a+r.b}));
+  const last=rows[N-1],neg=rows.find(r=>r.k<0),min=rows.reduce((m,r)=>r.k<m.k?r:m,rows[0]),yE=planEnd(),atE=rows.find(r=>r.y===yE);
+  document.getElementById("kontoText").textContent=`Alles Geld der GbR auf einem Konto gedacht: Startguthaben und Schenkungen der Eltern plus der kumulierte Cashflow aller Wohnungen und der Garage nach Zins, Tilgung und Kosten, vor Steuern der Gesellschafter. `+
+    (atE?`Ende ${yE} (Planende) stehen ${eur(atE.k)} auf dem Konto. `:"")+
+    (neg?`Im Lauf von ${neg.y} rutscht das Konto ins Minus; bis ${last.y} fehlen ${eur(-last.k)}, je Gesellschafter ${eur(-last.k/3)}.`:`Das Konto bleibt im ganzen Zeitraum im Plus. Tiefster Stand ${eur(min.k)} (${min.y}), Stand ${last.y}: ${eur(last.k)}.`);
+  const W=900,H=260,L=64,R=12,T=12,B=28,pw=W-L-R,ph=H-T-B;
+  const vals=[0,...rows.flatMap(r=>[r.k,Math.max(r.a,0)+Math.max(r.b,0),Math.min(r.a,0)+Math.min(r.b,0)])];const ax=axis(Math.min(...vals),Math.max(...vals));
+  const Y=x=>T+ph-(x-ax.lo)/(ax.hi-ax.lo)*ph;const w=pw/rows.length;const X=i=>L+w*i+w/2;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Kontostand der GbR kumuliert">`;
+  ax.ticks.forEach(tk=>{s+=`<line x1="${L}" x2="${W-R}" y1="${Y(tk)}" y2="${Y(tk)}" style="stroke:var(--line)" stroke-width="${tk===0?1.6:1}"/><text x="${L-8}" y="${Y(tk)+4}" text-anchor="end">${k(tk)}</text>`});
+  rows.forEach((r,i)=>{const x=L+w*i+w*.18,bw=w*.64;let up=0,dn=0;
+    [[r.b,"var(--c2)"],[r.a,"var(--c1)"]].forEach(([val,col])=>{if(Math.abs(val)<0.5)return;let y0,y1;if(val>0){y0=up;y1=up+val;up=y1}else{y1=dn;y0=dn+val;dn=y0}
+      const rect=(t,b,op)=>`<rect x="${x}" y="${Y(t)}" width="${bw}" height="${Math.max(Y(b)-Y(t),0.5)}" style="fill:${col};opacity:${op}"/>`;
+      if(val>0&&r.k>=0&&r.k<y1-0.5&&r.k>y0)s+=rect(r.k,y0,.9)+rect(y1,r.k,.28);
+      else if(val>0&&r.k<=y0&&r.a<0&&r.b>0)s+=rect(y1,y0,.28);
+      else s+=rect(y1,y0,.9)});
+  });
+  if(atE){const i=rows.indexOf(atE);s+=`<line x1="${X(i)+w/2}" x2="${X(i)+w/2}" y1="${T}" y2="${H-B}" style="stroke:var(--ink)" stroke-dasharray="3 3"/><text x="${X(i)+w/2-4}" y="${T+10}" text-anchor="end" style="fill:var(--ink)">Planende</text>`}
+  s+=yearLabels(rows,X,H)+"</svg>";
+  const el=document.getElementById("c5");el.innerHTML=s;
+  bindTip(el.querySelector("svg"),rows,r=>`${r.y}\nKontostand ${eur(r.k)}\n  Rücklage 111 ${eur(r.a)}\n  Mainzer 105 ${eur(r.b)}\nCashflow im Jahr ${eur(r.cf)}`+(r.g?`\nEinzahlung Eltern ${eur(r.g)}`:""),L,w,W);
+}
 function chartRes(rows,N){
   const neg=rows.find(r=>r.res<0), last=rows[N-1], st=v("haus","start");
   const minR=rows.reduce((m,r)=>Math.min(m,r.res),Infinity);
@@ -880,8 +911,9 @@ function render(){
     h+=`<tr class="total">`+cc.map((c,i)=>`<td>${i===0?"Portfolio":c[1](pf)}</td>`).join("")+"</tr>";
     document.getElementById("cmp").innerHTML=h+"</tbody>";
   }
-  const showRes=(view==="pf"||view==="m111")&&(v("haus","start")>0||res.some(r=>r.res<0)); document.getElementById("resCard").hidden=!showRes;
+  const showRes=view==="m111"&&(v("haus","start")>0||res.some(r=>r.res<0)); document.getElementById("resCard").hidden=!showRes;
   if(showRes)chartRes(res,N);
+  document.getElementById("kontoCard").hidden=view!=="pf"; if(view==="pf")chartKonto(groups,N);
   chart1(rows); chart2(rows,U.L);
   const cols=[["Jahr",r=>r.y],["Miete",r=>eur(r.rent)],["Zinsen",r=>eur(r.zins)],["Tilgung",r=>eur(r.tilg)],["Restschuld",r=>eur(r.bal)],["AfA",r=>eur(r.afa)],["Kosten",r=>eur(r.cost)],
     ["Cashflow vor St.",r=>`<span class="${sign(r.cf)}">${eur(r.cf)}</span>`],["Steuerl. Ergebnis",r=>`<span class="${sign(r.rec)}">${eur(r.rec)}</span>`],
